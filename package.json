@@ -1,0 +1,32 @@
+{
+  "name": "Base",
+  "description": "Base object",
+  "version": "0.0.1",
+  "author": "si@ibrokethat.com",
+  "contributors": [
+    { "name": "Simon Jefford", "email": "si@ibrokethat.com" }
+  ],
+  "dependencies": {
+    "Object": "git+ssh://git@github.com:ibrokethat/Object",
+    "iter": "git+ssh://git@github.com:ibrokethat/iter",
+    "Collection": "git+ssh://git@github.com:ibrokethat/Collection",
+    "registry": "git+ssh://git@github.com:ibrokethat/registry",
+    "sys": "git+ssh://git@github.com:ibrokethat/sys",
+    "is": "git+ssh://git@github.com:ibrokethat/is"
+  },
+  "devDependencies": {
+    "mocha": "1.2.x",
+    "sinon": "1.3.x"
+  },
+  "keywords": ["ibrokethat", "Base"],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:ibrokethat/Base"
+  },
+  "main": "Base",
+  "scripts": {
+    "prepublish" : "npm prune",
+    "test": "mocha -u bdd"
+  },
+  "engines": { "node": "*" }
+}
