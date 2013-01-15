@@ -11,6 +11,7 @@ var EventEmitter = require("events").EventEmitter;
 var Collection   = require("Collection");
 var registry     = require("registry");
 var system       = require("system");
+var generateUuid = require("uuid").generate;
 var iter         = require("iter");
 var is           = require("is");
 var func         = require("func");
@@ -21,12 +22,11 @@ var enforce      = is.enforce;
 var typeOf       = is.typeOf;
 var hasOwnKey    = is.hasOwnKey;
 var bind         = func.bind;
+var identity     = func.identity;
 var Base;
 
 var READ_ONLY_MODE = "readOnly";
 var EDIT_MODE = "edit";
-
-var inspect = require("util").inspect;
 
 function set (object, name, definition, value) {
 
@@ -40,13 +40,13 @@ function set (object, name, definition, value) {
 
   object.emit(name, {
     value: value,
-    model: object
+    object: object
   });
 
   object.emit("update", {
     property: name,
     value: value,
-    model: object
+    object: object
   });
 
   if (!definition.sync || object._dropSync) return;
@@ -73,7 +73,9 @@ function createProperty (object, name, definition, enumerable) {
 
     set: function(value) {
 
-      set(this, name, definition, value);
+      definition.set = definition.set || identity;
+
+      set(this, name, definition, definition.set(value));
 
     },
 
@@ -339,6 +341,8 @@ Base = EventEmitter.extend({
 
     value: function(data) {
 
+        data = data || {};
+
         initProperties(this);
         initHasMany(this);
         initHasOne(this);
@@ -350,9 +354,11 @@ Base = EventEmitter.extend({
         //  as the data object is being passed around all client from the server to instantiate
         //  the synced model
         //  todo: add serialise function and remove the patch on the data.id
-        if (typeof data.id === "undefined") {
-          //this.id = data.id = utils.generateId();
-        }
+        // if (typeof data.id === "undefined") {
+        //   this.id = data.id = utils.generateId();
+        // }
+
+        this.id = generateUuid();
 
         registry.add(this);
 
@@ -364,33 +370,13 @@ Base = EventEmitter.extend({
 
     value: function (data) {
 
-      //  this bit may not be needed
-      if (!data) {
-
-        system.emit("sync", {
-          id: this.id,
-          self: this.serialise()
-        });
-
-        return;
-      }
-
       this._dropSync = true;
 
-      if (data.self) {
-
-        this.__init__(data.self);
-
+      if (typeOf(Base, this.properties[data.property].type)) {
+        data.value = this.properties[data.property].type.spawn(data.value);
       }
-      else {
 
-        if (typeOf(Base, this.properties[data.property].type)) {
-          data.value = this.properties[data.property].type.spawn(data.value);
-        }
-
-        this[data.property] = data.value;
-
-      }
+      this[data.property] = data.value;
 
       this._dropSync = false;
 

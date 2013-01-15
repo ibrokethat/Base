@@ -23,7 +23,10 @@
     "type": "git",
     "url": "git@github.com:ibrokethat/Base"
   },
-  "main": "Base",
+  "ibrokethat": {
+    "buildClient": true
+  },
+  "main": "Base.js",
   "scripts": {
     "prepublish" : "npm prune",
     "test": "mocha -u bdd"
