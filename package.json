@@ -11,7 +11,7 @@
     "iter": "git+ssh://git@github.com:ibrokethat/iter",
     "Collection": "git+ssh://git@github.com:ibrokethat/Collection",
     "registry": "git+ssh://git@github.com:ibrokethat/registry",
-    "sys": "git+ssh://git@github.com:ibrokethat/sys",
+    "system": "git+ssh://git@github.com:ibrokethat/system",
     "is": "git+ssh://git@github.com:ibrokethat/is"
   },
   "devDependencies": {
