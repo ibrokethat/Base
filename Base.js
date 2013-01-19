@@ -1,8 +1,8 @@
 /**
 
   @module       Base
-  @description  object that all other objects in our system will inherit from
-                all objects support properties and relationships
+  @description  model that all other models in our system will inherit from
+                all models support properties and relationships
   @todo         1) hasMany, hasOne are the only relations so far. Implement embeds, belongsTo, hasAndBelongsToMany?
                 2) add readonly capacity to the properties
 
@@ -25,34 +25,26 @@ var bind         = func.bind;
 var identity     = func.identity;
 var Base;
 
-var READ_ONLY_MODE = "readOnly";
-var EDIT_MODE = "edit";
 
-function set (object, name, definition, value) {
+function set (model, name, definition, value) {
 
   if (definition.type && !typeOf("undefined", value)) {
     enforce(definition.type, value);
   }
 
-  Object.defineProperty(object, "_data", Object.create(object._data));
+  Object.defineProperty(model, "_data", Object.create(model._data));
 
-  object._data[name] = value;
+  model._data[name] = value;
 
-  object.emit(name, {
+  model.emit(name, {
     value: value,
-    object: object
+    model: model
   });
 
-  object.emit("update", {
-    property: name,
-    value: value,
-    object: object
-  });
-
-  if (!definition.sync || object._dropSync) return;
+  if (!definition.sync || model._dropsync) return;
 
   system.emit("sync", {
-    id: object.id,
+    id: model.id,
     property: name,
     value: typeOf(Base, value) ? value.serialise() : value
   });
@@ -60,22 +52,23 @@ function set (object, name, definition, value) {
 }
 
 
-function createProperty (object, name, definition, enumerable) {
+function createProperty (model, name, definition, enumerable) {
+
+  definition.get = definition.get || identity;
+  definition.set = definition.set || identity;
 
   //  create the getters and setters
-  Object.defineProperty(object, name, {
+  Object.defineProperty(model, name, {
 
     get: function() {
 
-      return this._data[name];
+      return definition.get.call(this, this._data[name]);
 
     },
 
     set: function(value) {
 
-      definition.set = definition.set || identity;
-
-      set(this, name, definition, definition.set(value));
+      set(this, name, definition, definition.set.call(this, value));
 
     },
 
@@ -84,12 +77,18 @@ function createProperty (object, name, definition, enumerable) {
   });
 
   if (!typeOf("undefined", definition.defaultValue)) {
-    object[name] = definition.defaultValue;
+
+    var value = definition.defaultValue;
+
+    if (typeOf("array", definition.defaultValue)) value = [];
+
+    model._data[name] = definition.set(value);
+
   }
 
   if (definition.on) {
     forEach(definition.on, function(observer, property) {
-      object.on(property, bind(object, observer));
+      model.on(property, bind(model, observer));
     });
   }
 
@@ -100,17 +99,16 @@ function createProperty (object, name, definition, enumerable) {
 
 /**
   @description  create has many child entities
-  @param        {object} object
-  @param        {object} hasMany
+  @param        {Object} model
+  @param        {Object} hasMany
 */
-function createHasMany (object, data) {
+function createHasMany (model, data) {
 
-  forEach(object["hasMany"], function(relation, name) {
+  forEach(model["hasMany"], function(relation, name) {
 
     if (hasOwnKey(name, data)) {
-
       forEach(data[name], function(data) {
-        object[name].add(relation.spawn(data));
+        model[name].add(relation.spawn(data));
       });
     }
 
@@ -121,15 +119,15 @@ function createHasMany (object, data) {
 
 /**
   @description  create has one child entities
-  @param        {object} object
-  @param        {object} hasOne
+  @param        {Object} model
+  @param        {Object} hasOne
 */
-function createHasOne (object, hasOne) {
+function createHasOne (model, hasOne) {
 
-  forEach(object["hasOne"], function(relation, name) {
+  forEach(model["hasOne"], function(relation, name) {
 
     if (hasOwnKey(name, hasOne)) {
-      object[name] = relation.spawn(hasOne[name]);
+      model[name] = relation.spawn(hasOne[name]);
     }
 
   });
@@ -141,24 +139,25 @@ function createHasOne (object, hasOne) {
 /**
   @description  sets up the properties on the model
 */
-function initProperties (object) {
+function initProperties (model) {
 
-  Object.defineProperties(object, {
+  Object.defineProperties(model, {
     "_data": {
       value: {}
     },
-    "_dropSync": {
-      value: false
+    "_dropsync": {
+      value: false,
+      writable: true
     }
   });
 
 
-  forEach(object.properties, function(definition, name) {
+  forEach(model.properties, function(definition, name) {
 
-    if (!hasOwnKey(name, object)) {
+    if (!hasOwnKey(name, model)) {
 
       //  create an enumerable property
-      createProperty(object, name, definition, true);
+      createProperty(model, name, definition, true);
 
     }
 
@@ -171,16 +170,19 @@ function initProperties (object) {
 /**
   @description  sets up the hasMany relationships on the model,
 */
-function initHasMany (object) {
+function initHasMany (model) {
 
 
-  forEach(object.hasMany, function(relation, name) {
+  forEach(model.hasMany, function(relation, name) {
 
-    if (!hasOwnKey(name, object)) {
+    if (!hasOwnKey(name, model)) {
 
       //  create a non-enumerable property
-      createProperty(object, name, {
-        'defaultValue': Collection.spawn(relation),
+      createProperty(model, name, {
+        'defaultValue': Collection.spawn({
+          type: relation,
+          id: model.id + "-" + name
+        }),
         'type'        : Collection
       });
 
@@ -194,14 +196,14 @@ function initHasMany (object) {
 /**
   @description  sets up the hasOne relationships on the model,
 */
-function initHasOne (object) {
+function initHasOne (model) {
 
-  forEach(object.hasOne, function(relation, name) {
+  forEach(model.hasOne, function(relation, name) {
 
-    if (!hasOwnKey(name, object)) {
+    if (!hasOwnKey(name, model)) {
 
       //  create a non-enumerable property
-      createProperty(object, name, {
+      createProperty(model, name, {
         'type'        : relation
       });
 
@@ -215,14 +217,14 @@ function initHasOne (object) {
 /**
   @description  loops over all the properties values
                 and updates their values from data
-  @param        {object} data
+  @param        {Object} data
 */
-function updateProperties (object, data) {
+function updateProperties (model, data) {
 
-  forEach(object, function(property, name){
+  forEach(model, function(property, name){
 
     if (hasOwnKey(name, data)) {
-      object[name] = data[name];
+      model[name] = data[name];
     }
 
   });
@@ -233,16 +235,6 @@ function updateProperties (object, data) {
 
 
 Base = EventEmitter.extend({
-
-  READ_ONLY_MODE: {
-    value: READ_ONLY_MODE,
-    configurable: false
-  },
-
-  EDIT_MODE: {
-    value: EDIT_MODE,
-    configurable: false
-  },
 
   EDIT_EVENT: {
     value: null,
@@ -262,31 +254,18 @@ Base = EventEmitter.extend({
 
       edit: {
         defaultValue: false,
-        type: "boolean"
-      },
+        type: "boolean",
+        set: function (value) {
 
-      mode: {
-        defaultValue: READ_ONLY_MODE,
-        type: "string",
-        on: {
-          edit: function () {
+          if (value) {
 
-            if (this.edit) {
-
-              this.mode = this.EDIT_MODE;
-
-              system.emit(this.EDIT_EVENT, {
-                object: this
-              });
-
-            }
-            else {
-
-              this.mode = this.READ_ONLY_MODE;
-
-            }
+            system.emit(this.EDIT_EVENT, {
+              model: this
+            });
 
           }
+
+          return value;
         }
       },
 
@@ -295,8 +274,8 @@ Base = EventEmitter.extend({
         type: "boolean",
         sync: true,
         on: {
-          mode: function () {
-            this.locked = this.mode === this.READ_ONLY_MODE ? false : true;
+          edit: function () {
+            this.locked = this.edit;
           }
         }
       }
@@ -344,21 +323,19 @@ Base = EventEmitter.extend({
         data = data || {};
 
         initProperties(this);
-        initHasMany(this);
-        initHasOne(this);
-        updateProperties(this, data);
-        createHasMany(this, data);
-        createHasOne(this, data);
 
         //  if the incoming data has no id, generate one, and add it to the data object
         //  as the data object is being passed around all client from the server to instantiate
         //  the synced model
         //  todo: add serialise function and remove the patch on the data.id
-        // if (typeof data.id === "undefined") {
-        //   this.id = data.id = utils.generateId();
-        // }
-
-        this.id = generateUuid();
+        if (typeof data.id === "undefined") {
+          data.id = generateUuid();
+        }
+        updateProperties(this, data);
+        initHasMany(this);
+        createHasMany(this, data);
+        initHasOne(this);
+        createHasOne(this, data);
 
         registry.add(this);
 
@@ -370,7 +347,7 @@ Base = EventEmitter.extend({
 
     value: function (data) {
 
-      this._dropSync = true;
+      this._dropsync = true;
 
       if (typeOf(Base, this.properties[data.property].type)) {
         data.value = this.properties[data.property].type.spawn(data.value);
@@ -378,7 +355,7 @@ Base = EventEmitter.extend({
 
       this[data.property] = data.value;
 
-      this._dropSync = false;
+      this._dropsync = false;
 
     }
 
