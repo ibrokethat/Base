@@ -46,7 +46,7 @@ function set (model, name, definition, value) {
   system.emit("sync", {
     id: model.id,
     property: name,
-    value: typeOf(Base, value) ? value.serialise() : value
+    value: value
   });
 
 }
@@ -359,17 +359,6 @@ Base = EventEmitter.extend({
 
     }
 
-  },
-
-  //  ????
-
-  destroy: {
-
-    value: function () {
-
-      registry.remove(this);
-
-    }
   }
 
 
