@@ -16,6 +16,8 @@ var iter         = require("iter");
 var is           = require("is");
 var func         = require("func");
 var forEach      = iter.forEach;
+var filter       = iter.filter;
+var map          = iter.map;
 var chain        = iter.chain;
 var reduce       = iter.reduce;
 var enforce      = is.enforce;
@@ -23,6 +25,7 @@ var typeOf       = is.typeOf;
 var hasOwnKey    = is.hasOwnKey;
 var bind         = func.bind;
 var identity     = func.identity;
+var constant     = func.constant;
 var Base;
 
 
@@ -104,7 +107,7 @@ function createProperty (model, name, definition, enumerable) {
 */
 function createHasMany (model, data) {
 
-  forEach(model["hasMany"], function(relation, name) {
+  forEach(model.hasMany, function(relation, name) {
 
     if (hasOwnKey(name, data)) {
       forEach(data[name], function(data) {
@@ -148,8 +151,13 @@ function initProperties (model) {
     "_dropsync": {
       value: false,
       writable: true
+    },
+    "_events": {
+      value: {}
     }
+
   });
+
 
 
   forEach(model.properties, function(definition, name) {
@@ -232,6 +240,25 @@ function updateProperties (model, data) {
 }
 
 
+function serialise (model, recurse) {
+
+  var serialised = filter(model, constant(true));
+
+  if (!typeOf("undefined", recurse)) {
+
+    forEach(model.hasMany, function (relation, name) {
+
+      serialised[name] = map(model[name].items, serialise);
+
+    });
+
+  }
+
+  return serialised;
+
+}
+
+
 
 
 Base = EventEmitter.extend({
@@ -279,7 +306,6 @@ Base = EventEmitter.extend({
           }
         }
       }
-
     }
 
   },
@@ -321,16 +347,13 @@ Base = EventEmitter.extend({
     value: function(data) {
 
         data = data || {};
-
-        initProperties(this);
-
-        //  if the incoming data has no id, generate one, and add it to the data object
-        //  as the data object is being passed around all client from the server to instantiate
-        //  the synced model
-        //  todo: add serialise function and remove the patch on the data.id
+        //  todo: move the following into the aboce data declaration
+        //  to once the new file/ save functionality is sorted
         if (typeof data.id === "undefined") {
           data.id = generateUuid();
         }
+
+        initProperties(this);
         updateProperties(this, data);
         initHasMany(this);
         createHasMany(this, data);
@@ -340,6 +363,17 @@ Base = EventEmitter.extend({
         registry.add(this);
 
     }
+  },
+
+
+  serialise: {
+
+    value: function (recurse) {
+
+      return serialise(this, recurse);
+
+    }
+
   },
 
 
