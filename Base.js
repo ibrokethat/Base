@@ -104,7 +104,7 @@ function createProperty (model, name, definition, enumerable) {
   @param        {Object} model
   @param        {Object} hasMany
 */
-function createHasMany (model, data, errors) {
+function createHasMany (model, data, err) {
 
   forEach(model.hasMany, function(relation, name) {
 
@@ -118,7 +118,7 @@ function createHasMany (model, data, errors) {
         }
         catch (e) {
 
-          e.forEach(errors.push);
+          err.errors.push.apply(err.errors, e);
         }
       });
     }
@@ -133,7 +133,7 @@ function createHasMany (model, data, errors) {
   @param        {Object} model
   @param        {Object} hasOne
 */
-function createHasOne (model, data, errors) {
+function createHasOne (model, data, err) {
 
   forEach(model.hasOne, function(relation, name) {
 
@@ -145,7 +145,7 @@ function createHasOne (model, data, errors) {
       }
       catch (e) {
 
-        e.forEach(errors.push);
+        err.errors.push.apply(err.errors, e);
       }
 
     }
@@ -253,7 +253,7 @@ function initHasOne (model) {
                 and updates their values from data
   @param        {Object} data
 */
-function updateProperties (model, data, errors) {
+function updateProperties (model, data, err) {
 
   forEach(model, function(property, name){
 
@@ -265,7 +265,7 @@ function updateProperties (model, data, errors) {
       }
       catch (e) {
 
-        e.forEach(errors.push);
+        err.errors.push(e);
       }
     }
 
@@ -384,17 +384,19 @@ Base = Proto.extend({
         data.id = uuid.v4();
       }
 
-      var errors = [];
+      var e = {
+        errors: []
+      };
 
       initProperties(this);
-      updateProperties(this, data, errors);
+      updateProperties(this, data, e);
       initHasMany(this);
-      createHasMany(this, data, errors);
+      createHasMany(this, data, e);
       initHasOne(this);
-      createHasOne(this, data, errors);
+      createHasOne(this, data, e);
 
-      if (errors.length) {
-        throw errors;
+      if (e.errors.length) {
+        throw e.errors;
       }
 
       registry.add(this);
