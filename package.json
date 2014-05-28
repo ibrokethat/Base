@@ -1,18 +1,19 @@
 {
-  "name": "Base",
+  "name": "super-base",
   "description": "Base object",
-  "version": "0.0.1",
+  "version": "0.0.5",
   "author": "si@ibrokethat.com",
   "contributors": [
     { "name": "Simon Jefford", "email": "si@ibrokethat.com" }
   ],
   "dependencies": {
-    "Object": "git+ssh://git@github.com:ibrokethat/Object",
-    "iter": "git+ssh://git@github.com:ibrokethat/iter",
-    "Collection": "git+ssh://git@github.com:ibrokethat/Collection",
-    "registry": "git+ssh://git@github.com:ibrokethat/registry",
-    "system": "git+ssh://git@github.com:ibrokethat/system",
-    "is": "git+ssh://git@github.com:ibrokethat/is"
+    "super-iter": "x",
+    "super-collection": "x",
+    "super-registry": "x",
+    "super-func": "x",
+    "super-is": "x",
+    "super-proto": "x",
+    "node-uuid": "x"
   },
   "devDependencies": {
     "mocha": "1.2.x",
@@ -29,7 +30,7 @@
   "main": "Base.js",
   "scripts": {
     "prepublish" : "npm prune",
-    "test": "mocha -u bdd"
+    "test": "mocha -u bdd --reporter spec --recursive"
   },
   "engines": { "node": "*" }
 }

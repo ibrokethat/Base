@@ -1,8 +1,7 @@
 var assert     = require("assert");
 var sinon      = require("sinon");
-var system     = require("system");
-var registry   = require("registry");
-var Collection = require("Collection");
+var registry   = require("super-registry");
+var Collection = require("super-collection");
 var Base       = require("../Base");
 var fakes;
 var Model;
@@ -21,7 +20,9 @@ describe("test Base module: ", function() {
     ChildModel = Base.extend({
       properties: {
         value: {
-          name: {}
+          name: {
+            type: 'string'
+          }
         }
       }
     });
@@ -43,6 +44,17 @@ describe("test Base module: ", function() {
         }
 
       },
+
+      hasOne: {
+
+        value: {
+
+          onInit: ChildModel,
+          afterInit: ChildModel
+        }
+
+      },
+
 
       properties: {
 
@@ -98,7 +110,7 @@ describe("test Base module: ", function() {
 
     });
 
-    model = Model.spawn({
+    model = Model.init({
       id: "id",
       stringTest: "string",
       numberTest: 1,
@@ -110,7 +122,8 @@ describe("test Base module: ", function() {
         {name: "matilda"},
         {name: "jefferson"},
         {name: "elliot"}
-      ]
+      ],
+      onInit: {name: "christos"}
     });
 
   });
@@ -124,7 +137,7 @@ describe("test Base module: ", function() {
   });
 
 
-  describe("Base spawn: ", function() {
+  describe("init: ", function() {
 
     it("should create a new object whose prototype is Model", function() {
 
@@ -148,8 +161,40 @@ describe("test Base module: ", function() {
       assert.equal(true, model.booleanTest);
       assert.equal(true, Array.prototype.isPrototypeOf(model.arrayTest));
 
+    });
+
+    it("should catch all property errors thrown during initialisation and then throw them all as one error", function() {
+
+      assert.throws(function() {
+
+        model = Model.init({
+          stringTest: {},
+          numberTest: {},
+          booleanTest: 200
+        });
+
+      });
 
     });
+
+    it("should catch all property errors of child objects thrown during initialisation and then throw them all as one error", function() {
+
+      assert.throws(function() {
+
+        model = Model.init({
+          children: [
+            {name: 10},
+            {name: 20}
+          ]
+        });
+
+      });
+
+    });
+
+  });
+
+  describe("properties: ", function () {
 
     it("should create properties that can hold any data", function() {
 
@@ -207,21 +252,21 @@ describe("test Base module: ", function() {
     it("should create properties that can sync", function() {
 
       var listener = fakes.stub();
-      system.on("sync", listener);
+      process.on("sync", listener);
       model.syncTest = "syncTestData";
       assert.equal(true, listener.calledOnce);
       assert.equal("id", listener.args[0][0].id);
-      system.removeListener("sync", listener);
+      process.removeListener("sync", listener);
 
     });
 
     it("should create properties that cannot sync", function() {
 
       var listener = fakes.stub();
-      system.on("sync", listener);
+      process.on("sync", listener);
       model.anyTest = "syncTestData";
       assert.equal(false, listener.calledOnce);
-      system.removeListener("sync", listener);
+      process.removeListener("sync", listener);
 
     });
 
@@ -259,10 +304,10 @@ describe("test Base module: ", function() {
     it("should lock the model when in edit mode", function() {
 
       var listener = fakes.stub();
-      system.on("editTest", listener);
+      process.on("editTest", listener);
 
       var listener2 = fakes.stub();
-      system.on("sync", listener2);
+      process.on("sync", listener2);
 
       model.edit = true;
       assert.equal(true, listener.calledOnce);
@@ -275,8 +320,8 @@ describe("test Base module: ", function() {
       assert.equal(true, listener2.calledTwice);
       assert.equal(false, model.locked);
 
-      system.removeListener("editTest", listener);
-      system.removeListener("sync", listener2);
+      process.removeListener("editTest", listener);
+      process.removeListener("sync", listener2);
 
     });
 
@@ -284,7 +329,7 @@ describe("test Base module: ", function() {
   });
 
 
-  describe("relationships: ", function () {
+  describe("has many relationships: ", function () {
 
     it("should create relationship accessors", function() {
 
@@ -292,7 +337,7 @@ describe("test Base module: ", function() {
 
     });
 
-    it("should recurseively popolate relationships from raw data", function() {
+    it("should recursively popolate relationships from raw data", function() {
 
       assert.equal(5, model.children.items.length);
       assert.equal("si", model.children.items[0].name);
@@ -300,6 +345,36 @@ describe("test Base module: ", function() {
       assert.equal("matilda", model.children.items[2].name);
       assert.equal("jefferson", model.children.items[3].name);
       assert.equal("elliot", model.children.items[4].name);
+
+    });
+
+  });
+
+  describe("has one relationships: ", function () {
+
+    it("should create relationship accessors", function() {
+
+      assert.equal(true, ChildModel.isPrototypeOf(model.onInit));
+
+    });
+
+    it("should set relationship accessors after initialisation from raw data", function() {
+
+      model.afterInit = {name: "si-after"};
+
+      assert.equal(true, ChildModel.isPrototypeOf(model.afterInit));
+
+      assert.equal("si-after", model.afterInit.name);
+
+    });
+
+    it("should set relationship accessors after initialisation from already instantiated data", function() {
+
+      model.afterInit = ChildModel.init({name: "si-after-init"});
+
+      assert.equal(true, ChildModel.isPrototypeOf(model.afterInit));
+
+      assert.equal("si-after-init", model.afterInit.name);
 
     });
 

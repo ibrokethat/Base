@@ -1,41 +1,39 @@
 /**
 
   @module       Base
-  @description  model that all other models in our system will inherit from
+  @description  model that all other models in our process will inherit from
                 all models support properties and relationships
   @todo         1) hasMany, hasOne are the only relations so far. Implement embeds, belongsTo, hasAndBelongsToMany?
                 2) add readonly capacity to the properties
 
 */
-var EventEmitter = require("events").EventEmitter;
-var Collection   = require("Collection");
-var registry     = require("registry");
-var system       = require("system");
-var generateUuid = require("uuid").generate;
-var iter         = require("iter");
-var is           = require("is");
-var func         = require("func");
-var forEach      = iter.forEach;
-var filter       = iter.filter;
-var map          = iter.map;
-var chain        = iter.chain;
-var reduce       = iter.reduce;
-var enforce      = is.enforce;
-var typeOf       = is.typeOf;
-var hasOwnKey    = is.hasOwnKey;
-var bind         = func.bind;
-var identity     = func.identity;
-var constant     = func.constant;
+var uuid = require('node-uuid');
+var Proto = require('super-proto');
+var Collection = require('super-collection');
+var registry = require('super-registry');
+var iter = require('super-iter');
+var is = require('super-is');
+var func = require('super-func');
+var forEach = iter.forEach;
+var filter = iter.filter;
+var map = iter.map;
+var chain = iter.chain;
+var reduce = iter.reduce;
+var enforce = is.enforce;
+var typeOf = is.typeOf;
+var hasOwnKey = is.hasOwnKey;
+var bind = func.bind;
+var identity = func.identity;
+var partial = func.partial;
 var Base;
-
 
 function set (model, name, definition, value) {
 
-  if (definition.type && !typeOf("undefined", value)) {
+  if (definition.type && !typeOf('undefined', value)) {
     enforce(definition.type, value);
   }
 
-  Object.defineProperty(model, "_data", Object.create(model._data));
+  Object.defineProperty(model, '_data', Object.create(model._data));
 
   model._data[name] = value;
 
@@ -46,7 +44,7 @@ function set (model, name, definition, value) {
 
   if (!definition.sync || model._dropsync) return;
 
-  system.emit("sync", {
+  process.emit('sync', {
     id: model.id,
     property: name,
     value: value
@@ -79,11 +77,12 @@ function createProperty (model, name, definition, enumerable) {
 
   });
 
-  if (!typeOf("undefined", definition.defaultValue)) {
+
+  if (!typeOf('undefined', definition.defaultValue)) {
 
     var value = definition.defaultValue;
 
-    if (typeOf("array", definition.defaultValue)) value = [];
+    if (typeOf('array', definition.defaultValue)) value = [];
 
     model._data[name] = definition.set(value);
 
@@ -105,13 +104,18 @@ function createProperty (model, name, definition, enumerable) {
   @param        {Object} model
   @param        {Object} hasMany
 */
-function createHasMany (model, data) {
+function createHasMany (model, data, errors) {
 
   forEach(model.hasMany, function(relation, name) {
 
     if (hasOwnKey(name, data)) {
       forEach(data[name], function(data) {
-        model[name].add(relation.spawn(data));
+        try {
+          model[name].add(relation.init(data));
+        }
+        catch (e) {
+          errors.push.apply(errors, e);
+        }
       });
     }
 
@@ -125,12 +129,18 @@ function createHasMany (model, data) {
   @param        {Object} model
   @param        {Object} hasOne
 */
-function createHasOne (model, hasOne) {
+function createHasOne (model, data, errors) {
 
-  forEach(model["hasOne"], function(relation, name) {
+  forEach(model.hasOne, function(relation, name) {
 
-    if (hasOwnKey(name, hasOne)) {
-      model[name] = relation.spawn(hasOne[name]);
+    if (hasOwnKey(name, data)) {
+      try {
+        model[name] = data[name];
+      }
+      catch (e) {
+        errors.push.apply(errors, e);
+      }
+
     }
 
   });
@@ -152,13 +162,11 @@ function initProperties (model) {
       value: false,
       writable: true
     },
-    "_events": {
-      value: {}
+    "_errors": {
+      value: []
     }
 
   });
-
-
 
   forEach(model.properties, function(definition, name) {
 
@@ -185,13 +193,18 @@ function initHasMany (model) {
 
     if (!hasOwnKey(name, model)) {
 
+      var defaultValue = Collection.init({
+        type: relation,
+        id: model.id + "-" + name
+      });
+
       //  create a non-enumerable property
       createProperty(model, name, {
-        'defaultValue': Collection.spawn({
-          type: relation,
-          id: model.id + "-" + name
-        }),
-        'type'        : Collection
+
+        defaultValue: defaultValue,
+
+        type: Collection
+
       });
 
     }
@@ -212,7 +225,13 @@ function initHasOne (model) {
 
       //  create a non-enumerable property
       createProperty(model, name, {
-        'type'        : relation
+
+        type: relation,
+
+        set: function (data) {
+          return typeOf(relation, data) ? data : relation.init(data);
+        }
+
       });
 
     }
@@ -227,12 +246,18 @@ function initHasOne (model) {
                 and updates their values from data
   @param        {Object} data
 */
-function updateProperties (model, data) {
+function updateProperties (model, data, errors) {
 
   forEach(model, function(property, name){
 
     if (hasOwnKey(name, data)) {
-      model[name] = data[name];
+
+      try {
+        model[name] = data[name];
+      }
+      catch (e) {
+        errors.push(e);
+      }
     }
 
   });
@@ -242,7 +267,7 @@ function updateProperties (model, data) {
 
 function serialise (model, recurse) {
 
-  var serialised = filter(model, constant(true));
+  var serialised = filter(model, partial(identity, true));
 
   if (!typeOf("undefined", recurse)) {
 
@@ -259,9 +284,7 @@ function serialise (model, recurse) {
 }
 
 
-
-
-Base = EventEmitter.extend({
+Base = Proto.extend({
 
   EDIT_EVENT: {
     value: null,
@@ -286,7 +309,7 @@ Base = EventEmitter.extend({
 
           if (value) {
 
-            system.emit(this.EDIT_EVENT, {
+            process.emit(this.EDIT_EVENT, {
               model: this
             });
 
@@ -324,12 +347,12 @@ Base = EventEmitter.extend({
       forEach(["properties", "hasMany", "hasOne"], function(property) {
 
         definition[property] = {
-          value: reduce({}, chain([definition[property] ? definition[property].value : {}, this[property] || {}]), function(acc, value, key) {
+          value: reduce(chain([definition[property] ? definition[property].value : {}, this[property] || {}]), function(acc, value, key) {
             if (!hasOwnKey(key, acc)) {
               acc[key] = value;
             }
             return acc;
-          })
+          }, {})
         };
 
       }, this);
@@ -340,27 +363,32 @@ Base = EventEmitter.extend({
 
 
   /**
-    @description  Object.spawn constructor
+    @description  Object.init constructor
   */
   __init__: {
 
     value: function(data) {
 
-        data = data || {};
-        //  todo: move the following into the aboce data declaration
-        //  to once the new file/ save functionality is sorted
-        if (typeof data.id === "undefined") {
-          data.id = generateUuid();
-        }
+      data = data || {};
 
-        initProperties(this);
-        updateProperties(this, data);
-        initHasMany(this);
-        createHasMany(this, data);
-        initHasOne(this);
-        createHasOne(this, data);
+      if (typeof data.id === "undefined") {
+        data.id = uuid.v4();
+      }
 
-        registry.add(this);
+      var errors = [];
+
+      initProperties(this);
+      updateProperties(this, data, errors);
+      initHasMany(this);
+      createHasMany(this, data, errors);
+      initHasOne(this);
+      createHasOne(this, data, errors);
+
+      if (errors.length) {
+        throw errors;
+      }
+
+      registry.add(this);
 
     }
   },
@@ -384,7 +412,7 @@ Base = EventEmitter.extend({
       this._dropsync = true;
 
       if (typeOf(Base, this.properties[data.property].type)) {
-        data.value = this.properties[data.property].type.spawn(data.value);
+        data.value = this.properties[data.property].type.init(data.value);
       }
 
       this[data.property] = data.value;
@@ -394,7 +422,6 @@ Base = EventEmitter.extend({
     }
 
   }
-
 
 });
 
