@@ -118,7 +118,7 @@ function createHasMany (model, data, errors) {
         }
         catch (e) {
 
-          errors.push.apply(errors, e);
+          e.forEach(errors.push);
         }
       });
     }
@@ -145,7 +145,7 @@ function createHasOne (model, data, errors) {
       }
       catch (e) {
 
-        errors.push.apply(errors, e);
+        e.forEach(errors.push);
       }
 
     }
@@ -265,7 +265,7 @@ function updateProperties (model, data, errors) {
       }
       catch (e) {
 
-        errors.push.apply(errors, e);
+        e.forEach(errors.push);
       }
     }
 
