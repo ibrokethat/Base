@@ -349,7 +349,7 @@ Base = Proto.extend({
         var objects = [];
 
         if (definition[property]) {
-          object.push(definition[property].value);
+          objects.push(definition[property].value);
         }
         if (this[property]) {
           objects.push(this[property]);

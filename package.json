@@ -1,7 +1,7 @@
 {
   "name": "super-base",
   "description": "Base object",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "author": "si@ibrokethat.com",
   "contributors": [
     { "name": "Simon Jefford", "email": "si@ibrokethat.com" }
