@@ -109,11 +109,15 @@ function createHasMany (model, data, errors) {
   forEach(model.hasMany, function(relation, name) {
 
     if (hasOwnKey(name, data)) {
+
       forEach(data[name], function(data) {
+
         try {
+
           model[name].add(relation.init(data));
         }
         catch (e) {
+
           errors.push.apply(errors, e);
         }
       });
@@ -134,10 +138,13 @@ function createHasOne (model, data, errors) {
   forEach(model.hasOne, function(relation, name) {
 
     if (hasOwnKey(name, data)) {
+
       try {
+
         model[name] = data[name];
       }
       catch (e) {
+
         errors.push.apply(errors, e);
       }
 
@@ -253,10 +260,12 @@ function updateProperties (model, data, errors) {
     if (hasOwnKey(name, data)) {
 
       try {
+
         model[name] = data[name];
       }
       catch (e) {
-        errors.push(e);
+
+        errors.push.apply(errors, e);
       }
     }
 
