@@ -346,8 +346,19 @@ Base = Proto.extend({
       //  merge all the definition object declarations
       forEach(["properties", "hasMany", "hasOne"], function(property) {
 
+        var objects = [];
+
+        if (definition[property]) {
+          object.push(definition[property].value);
+        }
+        if (this[property]) {
+          objects.push(this[property]);
+        }
+
+        if (objects.length === 0) return;
+
         definition[property] = {
-          value: reduce(chain([definition[property] ? definition[property].value : {}, this[property] || {}]), function(acc, value, key) {
+          value: reduce(chain(objects), function(acc, value, key) {
             if (!hasOwnKey(key, acc)) {
               acc[key] = value;
             }
