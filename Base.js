@@ -104,7 +104,7 @@ function createProperty (model, name, definition, enumerable) {
   @param        {Object} model
   @param        {Object} hasMany
 */
-function createHasMany (model, data, err) {
+function createHasMany (model, data, e) {
 
   forEach(model.hasMany, function(relation, name) {
 
@@ -112,14 +112,7 @@ function createHasMany (model, data, err) {
 
       forEach(data[name], function(data) {
 
-        try {
-
-          model[name].add(relation.init(data));
-        }
-        catch (e) {
-
-          err.errors.push.apply(err.errors, e);
-        }
+        model[name].add(relation.init(data, e));
       });
     }
 
@@ -133,21 +126,13 @@ function createHasMany (model, data, err) {
   @param        {Object} model
   @param        {Object} hasOne
 */
-function createHasOne (model, data, err) {
+function createHasOne (model, data, e) {
 
   forEach(model.hasOne, function(relation, name) {
 
     if (hasOwnKey(name, data)) {
 
-      try {
-
-        model[name] = data[name];
-      }
-      catch (e) {
-
-        err.errors.push.apply(err.errors, e);
-      }
-
+      model[name] = relation.init(data[name], e);
     }
 
   });
@@ -253,7 +238,7 @@ function initHasOne (model) {
                 and updates their values from data
   @param        {Object} data
 */
-function updateProperties (model, data, err) {
+function updateProperties (model, data, e) {
 
   forEach(model, function(property, name){
 
@@ -263,9 +248,9 @@ function updateProperties (model, data, err) {
 
         model[name] = data[name];
       }
-      catch (e) {
+      catch (err) {
 
-        err.errors.push(e);
+        e.errors.push(err);
       }
     }
 
@@ -376,26 +361,34 @@ Base = Proto.extend({
   */
   __init__: {
 
-    value: function(data) {
+    value: function(data, e) {
+
+      var throwErrors = false;
 
       data = data || {};
+
+      if (typeof e === 'undefined') {
+
+        throwErrors = true;
+
+        e = {
+          errors: []
+        };
+
+      }
 
       if (typeof data.id === "undefined") {
         data.id = uuid.v4();
       }
 
-      var e = {
-        errors: []
-      };
-
       initProperties(this);
-      updateProperties(this, data, e);
       initHasMany(this);
-      createHasMany(this, data, e);
       initHasOne(this);
+      updateProperties(this, data, e);
+      createHasMany(this, data, e);
       createHasOne(this, data, e);
 
-      if (e.errors.length) {
+      if (throwErrors && e.errors.length) {
         throw e.errors;
       }
 
