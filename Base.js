@@ -10,7 +10,6 @@
 var uuid = require('node-uuid');
 var Proto = require('super-proto');
 var Collection = require('super-collection');
-var registry = require('super-registry');
 var iter = require('super-iter');
 var is = require('super-is');
 var func = require('super-func');
@@ -22,6 +21,7 @@ var reduce = iter.reduce;
 var enforce = is.enforce;
 var typeOf = is.typeOf;
 var hasOwnKey = is.hasOwnKey;
+var hasKeyOfValue = is.hasKeyOfValue;
 var bind = func.bind;
 var identity = func.identity;
 var partial = func.partial;
@@ -153,9 +153,6 @@ function initProperties (model) {
     "_dropsync": {
       value: false,
       writable: true
-    },
-    "_errors": {
-      value: []
     }
 
   });
@@ -164,9 +161,10 @@ function initProperties (model) {
 
     if (!hasOwnKey(name, model)) {
 
-      //  create an enumerable property
-      createProperty(model, name, definition, true);
+      var enumerable = !(hasKeyOfValue('enumerable', false , definition));
 
+      //  create an enumerable property
+      createProperty(model, name, definition, enumerable);
     }
 
   });
@@ -240,6 +238,8 @@ function initHasOne (model) {
 */
 function updateProperties (model, data, e) {
 
+  model.id = data.id;
+
   forEach(model, function(property, name){
 
     if (hasOwnKey(name, data)) {
@@ -293,7 +293,8 @@ Base = Proto.extend({
     value: {
 
       id: {
-        type: 'string'
+        type: 'string',
+        enumerable: false
       },
 
       edit: {
@@ -310,7 +311,8 @@ Base = Proto.extend({
           }
 
           return value;
-        }
+        },
+        enumerable: false
       },
 
       locked: {
@@ -321,7 +323,8 @@ Base = Proto.extend({
           edit: function () {
             this.locked = this.edit;
           }
-        }
+        },
+        enumerable: false
       }
     }
 
@@ -392,7 +395,7 @@ Base = Proto.extend({
         throw e.errors;
       }
 
-      registry.add(this);
+      process.emit('registry:add', this);
 
     }
   },
