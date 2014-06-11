@@ -29,7 +29,7 @@ var Base;
 
 function set (model, name, definition, value) {
 
-  if (definition.type && !typeOf('undefined', value)) {
+  if (definition.type) {
     enforce(definition.type, value);
   }
 
